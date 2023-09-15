@@ -1,28 +1,120 @@
 ---
-title: ""
-author: ""
+title: "lab4"
+author: "HsiHsuan Yang"
 format:
   html:
     embed-resources: true
 ---
-
-## Quarto
-
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
-
-## Running Code
-
-When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
-
 ```{r}
-1 + 1
+if (!file.exists("met_all.gz"))
+  download.file(
+    url = "https://raw.githubusercontent.com/USCbiostats/data-science-data/master/02_met/met_all.gz",
+    destfile = "met_all.gz",
+    method   = "libcurl",
+    timeout  = 60
+    )
+met <- data.table::fread("met_all.gz")
+```
+Question 2
+```{r}
+library(data.table)
+library(leaflet)
+library(tidyverse)
+
+# Step 1: Remove temperatures less than -17C
+met <- met[temp >= -17]
+
+# Step 2: Replace missing data (coded as 9999, 999, etc.) with NA
+met[elev == 9999, elev:= NA]
+
+# Step 3: Generate a date variable using the given hint
+met[, week := week(as.Date(paste(year, month, day, sep = "-")))]
+
+# Step 4: Keep observations of the first week of the month using week function
+met <- met[week == min(week, na.rm = TRUE)]
+
+#Step 5: average of each station
+met_mean <- met[,.(temp=mean(temp,na.rm=TRUE), rh=mean(rh,na.rm=TRUE), windsp=mean(wind.sp,na.rm=TRUE), 
+                visdist=mean(vis.dist,na.rm=TRUE), dewpoint = mean(dew.point, na.rm=TRUE), lat=mean(lat), lon=mean(lon), 
+                elev=mean(elev,na.rm=TRUE)), by="USAFID"]
+
+met_mean$elev_cat <- ifelse(met_mean$elev> 252, "high", "low")
+
+met_mean$region <- ifelse(met_mean$lon > -98 & met_mean$lat >39.71, "NE",
+                         ifelse(met_mean$lon > -98 & met_mean$lat < 39.71, "SE",
+                                ifelse(met_mean$lon < -98 & met_mean$lat >39.71, "NW", "SW")))
+
+table(met_mean$region)
+```
+Question 3
+```{r}
+met_mean %>%
+  filter(!(region %in% NA)) %>%
+ggplot()+
+  geom_violin(mapping = aes(y=windsp, x=1)) +
+  facet_wrap(~region, nrow=2)
+```
+Question 4
+```{r}
+met_mean %>%
+filter(!(region %in% NA)) %>%
+  ggplot(mapping = aes(x=dewpoint, y=rh, color=region))+
+  geom_jitter() + 
+  stat_smooth(method=lm)
+```
+Question 5
+```{r}
+met_mean %>%
+filter(!(region %in% NA)) %>%
+  ggplot()+
+  geom_bar(mapping=aes(x=elev_cat,fill=region), position = "dodge")+
+  scale_fill_brewer(palette = "Pastel1")+
+  labs( x="elevation category", y= "count")+
+  theme_bw()
+```
+Question 6
+```{r}
+met_mean %>%
+filter(!(region %in% NA)) %>%
+  ggplot(mapping=aes(x=region, y=dewpoint)) +
+  stat_summary(fun.data="mean_sdl", geom="errorbar") +
+  stat_summary(fun.data="mean_sdl")
+met_mean %>%
+filter(!(region %in% NA)) %>%
+  ggplot(mapping=aes(x=region, y=windsp)) +
+  stat_summary(fun.data="mean_sdl", geom="errorbar") +
+  stat_summary(fun.data="mean_sdl")
+```
+Based on the above result, the mean dew point for NE is around 16, NW is around 12.5, SE is around 21, SW is around 14. The wind speed for NE is around 1.75, NW is around 2.8, SE is around 1.75, SW is around 3.1.  
+
+Question 7
+```{r}
+met_mean2<-met_mean[!is.na(rh)]
+
+# Top five
+top5 <- met_mean2[rank(-rh) <= 10]
+
+rhpal = colorNumeric(c('pink','blue','green'), domain=met_mean2$rh)
+leaflet(met_mean2) %>%
+  addProviderTiles('OpenStreetMap') %>%
+  addCircles(lat=~lat, lng=~lon, color=~rhpal(rh), label=~paste0(round(rh,2), ' rh'), opacity=1,fillOpacity=1, radius=500) %>%
+  addMarkers(lat=~lat, lng=~lon, label=~paste0(round(rh,2), ' rh'), data = top5) %>%
+  addLegend('bottomleft',pal=rhpal, values=met_mean2$rh, title="RH", opacity=1)
+```
+The RH is the highest on the east coast and lowest on the west coast (besides a few places near the coast of the westcoast that have high RH) of the United States according to the map.
+
+Question 8-Attempt 1
+```{r}
+library(ggforce)
+ggplot(met_mean, aes(elev, temp, colour = region)) +
+  geom_point() +
+  facet_zoom(x = region == "versicolor")
 ```
 
-You can add options to executable code like this
 
-```{r}
-#| echo: false
-2 * 2
-```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+
+
+
+
+
