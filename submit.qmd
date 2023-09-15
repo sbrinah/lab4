@@ -6,6 +6,7 @@ format:
     embed-resources: true
 ---
 ```{r}
+library(R.utils)
 if (!file.exists("met_all.gz"))
   download.file(
     url = "https://raw.githubusercontent.com/USCbiostats/data-science-data/master/02_met/met_all.gz",
