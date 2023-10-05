@@ -1,0 +1,194 @@
+---
+title: "Assignment 1"
+format: 
+  html:
+    embed-resources: true
+editor: visual
+---
+
+```{r}
+library(data.table)
+library(tidyverse)
+data_2002 <- data.table::fread("/Users/sabrinayang/Downloads/data_2002.csv")
+data_2022 <- data.table::fread("/Users/sabrinayang/Downloads/data_2022.csv")
+#Check dimensions
+dim(data_2002)
+dim(data_2022)
+```
+
+```{r}
+# Check the first few rows (headers) for each dataset
+head(data_2002)
+head(data_2022)
+```
+
+```{r}
+# Check the last few rows (footers) for each dataset
+tail(data_2002)
+tail(data_2022)
+```
+
+```{r}
+# Check variable names and types
+str(data_2002)
+str(data_2022)
+```
+
+```{r}
+any(is.na(data_2002$DailyMeanPM2.5Concentration))
+any(is.na(data_2022$DailyMeanPM2.5Concentration))
+```
+
+There is no missing data in daily mean PM2.5 concentration for both data sets.
+
+```{r}
+library(dplyr)
+data_2002 <- data_2002 %>% mutate(year = 2002)
+data_2022 <- data_2022 %>% mutate(year = 2022)
+combined_20022022 <- bind_rows(data_2002, data_2022)
+str(combined_20022022)
+```
+```{r}
+library(leaflet)
+leaflet(combined_20022022)
+color_palette <- colorFactor(palette = "Set3", domain = unique(combined_20022022$year))
+# Create the map
+leaflet(combined_20022022) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lng = ~SITE_LONGITUDE,
+    lat = ~SITE_LATITUDE,
+    radius = 2,
+    color = ~color_palette(year),
+    popup = ~paste("Year:", year),
+    label = ~as.character(year)
+  ) %>%
+  addLegend(
+    "bottomright",
+    pal = color_palette,
+    values = ~year,
+    title = "Year",
+    opacity = 1
+  )
+```
+The map shows where the data were collected in 2002 and 2022 within the state of California.
+
+```{r}
+missing_pm25 <- sum(is.na(combined_20022022$DailyMeanPM2.5Concentration))
+prop_missing_pm25 <- missing_pm25 / nrow(combined_20022022)
+print("Missing Values in PM2.5:")
+print(missing_pm25)
+print("Proportion of Missing Values:")
+print(prop_missing_pm25)
+summary_pm25 <- summary(combined_20022022$DailyMeanPM2.5Concentration)
+print("Summary Statistics for PM2.5:")
+print(summary_pm25)
+```
+
+```{r}
+library(ggplot2)
+library(dplyr)
+#on a state level
+combined_20022022<-combined_20022022 %>% rename(PM2.5=`Daily Mean PM2.5 Concentration`)
+ggplot(combined_20022022, aes(x = year, y = PM2.5)) +
+  geom_line(stat = "summary", fun = "mean") +
+  labs(title = "PM2.5 Concentration in California by Year",
+       x = "Year",
+       y = "PM2.5 Concentration")
+summary_state <- aggregate(PM2.5 ~ year, data = combined_20022022, FUN = mean)
+print(summary_state)
+```
+Based on the line graph, it indicated that the PM2.5 concentration decreased throughout the years between 2002 and 2022. Also, the summary statistics indicated that the PM2.5 concentration in 2022 is 8.564708 and 2002 is 16.115943, which showed a decrease.
+```{r}
+#on a county level 
+#boxplot
+combined_20022022<-combined_20022022 %>% rename(county=`COUNTY`)
+ggplot(combined_20022022, aes(x = county, y = PM2.5)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))
+  labs(title = "PM2.5 Distribution by County",
+       x = "County",
+       y = "Mean PM2.5 Concentration")
+#summary 
+summary_county <- combined_20022022 %>%
+  group_by(county) %>%
+  summarise(mean_PM2.5 = mean(PM2.5),
+            median_PM2.5 = median(PM2.5),
+            sd_PM2.5 = sd(PM2.5))
+print(summary_county)
+```
+The overall lowest mean PM2.5 is in El Dorado county, which is 4.471330, and the highest mean PM2.5 is in Kern county, which is 15.594534, based on the summary.According to the box plot, the two highest outliers on PM2.5 concentration are in Placer and Siskiyou county, which are around 300. 
+
+```{r}
+#for sites in LA
+library(data.table)
+library(tidyverse)
+la_2002 <- data.table::fread("/Users/sabrinayang/Downloads/la_2002.csv")
+la_2022 <- data.table::fread("/Users/sabrinayang/Downloads/la_2022.csv")
+#Check dimensions
+dim(la_2002)
+dim(la_2022)
+#Check the first few rows (headers) for each dataset
+head(la_2002)
+head(la_2022)
+any(is.na(la_2002$DailyMeanPM2.5Concentration))
+any(is.na(la_2022$DailyMeanPM2.5Concentration))
+#Combine datasets
+library(dplyr)
+la_2002 <- la_2002 %>% mutate(year = 2002)
+la_2022 <- la_2022 %>% mutate(year = 2022)
+combinedla_20022022 <- bind_rows(la_2002, la_2022)
+str(combinedla_20022022)
+#create map
+library(leaflet)
+color_combinedla <- colorFactor(palette = "Set1", domain = unique(combinedla_20022022$year))
+# Create the map
+leaflet(combinedla_20022022) %>%
+  addTiles() %>%
+  addCircleMarkers(
+    lng = ~SITE_LONGITUDE,
+    lat = ~SITE_LATITUDE,
+    radius = 2,
+    color = ~color_combinedla(year),
+    popup = ~paste("Year:", year),
+    label = ~as.character(year)
+  ) %>%
+  addLegend(
+    "bottomright",
+    pal = color_combinedla,
+    values = ~year,
+    title = "Year",
+    opacity = 1
+  )
+```
+The map shows the data collected in 2002 and 2022 in the area of the greater Los Angeles area.
+```{r}
+#change variable names
+combinedla_20022022<-combinedla_20022022 %>% rename(site=`Site Name`)
+combinedla_20022022<-combinedla_20022022 %>% rename(PM2.5=`Daily Mean PM2.5 Concentration`)
+#create boxplot
+ggplot(combinedla_20022022, aes(x = site, y = PM2.5)) +
+  geom_boxplot() +
+  theme(axis.text.x = element_text(angle = 40, hjust = 1))
+  labs(title = "PM2.5 Distribution by site in LA",
+       x = "Site",
+       y = "PM2.5 Concentration")
+#create histogram
+ggplot(combinedla_20022022, aes(x = PM2.5)) +
+  geom_histogram(binwidth = 5) +
+  facet_wrap(~ site) +
+  labs(title = "PM2.5 Distribution by site",
+       x = "PM2.5 Concentration",
+       y = "Frequency")
+#summary
+summary_site <- combinedla_20022022 %>%
+  group_by(site) %>%
+  summarise(mean_PM2.5 = mean(PM2.5),
+            median_PM2.5 = median(PM2.5),
+            sd_PM2.5 = sd(PM2.5))
+print(summary_site)
+```
+Based on the summary table, Lebec has the lowest mean PM2.5 (4.439333), while Burbank has the highest mean PM2.5 (23.969672). The boxplot tells the distribution (including the outliers) of each site in LA. The histogram shows the frequency of the PM2.5 concentration at each site. 
+
+
+
